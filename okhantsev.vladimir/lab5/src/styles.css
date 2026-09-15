@@ -1,0 +1,39 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+}
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(8, 70px);
+  grid-template-rows: repeat(8, 70px);
+  width: max-content;
+  border: 2px solid #333;
+}
+
+.cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40px;
+}
+
+.cell-light {
+  background: #f0d9b5;
+}
+
+.cell-dark {
+  background: #b58863;
+}
+
+.piece-white {
+  color: #fff;
+}
+
+.piece-black {
+  color: #222;
+}
