@@ -1,5 +1,5 @@
 export function makePiece(type, color) {
-  return {type, color};
+  return {type, color, hasMoved: false};
 }
 
 function insideBoard(row, column) {
@@ -176,9 +176,30 @@ export function applyMove(board, from, to, promotionType) {
   }
 
   next[from.row][from.column] = null;
-  next[to.row][to.column] = promoted(movingPiece, to.row, promotionType);
+
+  if (to.castle) {
+    const backRow = to.row;
+    const rookFromColumn = to.castle === 'k' ? 7 : 0;
+    const rookToColumn = to.castle === 'k' ? 5 : 3;
+    const rook = next[backRow][rookFromColumn];
+
+    next[backRow][rookFromColumn] = null;
+    next[backRow][rookToColumn] = {...rook, hasMoved: true};
+  }
+
+  next[to.row][to.column] = markMoved(
+    promoted(movingPiece, to.row, promotionType),
+  );
 
   return next;
+}
+
+function markMoved(piece) {
+  if (piece.type !== 'king' && piece.type !== 'rook') {
+    return piece;
+  }
+
+  return {...piece, hasMoved: true};
 }
 
 function promoted(targetPiece, targetRow, promotionType) {
@@ -264,11 +285,97 @@ export function legalMoves(board, row, column, enPassant) {
     return [];
   }
 
-  return getMoves(board, row, column, enPassant).filter((move) => {
+  const moves =
+    piece.type === 'king'
+      ? [
+          ...getMoves(board, row, column, enPassant),
+          ...castlingMoves(board, row, column),
+        ]
+      : getMoves(board, row, column, enPassant);
+
+  return moves.filter((move) => {
     const next = applyMove(board, {row, column}, move);
 
     return !isInCheck(next, piece.color);
   });
+}
+
+const CASTLING_CANDIDATES = [
+  {
+    rookColumn: 0,
+    kingTo: 2,
+    rookTo: 3,
+    side: 'q',
+    emptyColumns: [1, 2, 3],
+    passThroughColumns: [2, 3],
+  },
+  {
+    rookColumn: 7,
+    kingTo: 6,
+    rookTo: 5,
+    side: 'k',
+    emptyColumns: [5, 6],
+    passThroughColumns: [5, 6],
+  },
+];
+
+function castlingMoves(board, row, column) {
+  const king = board[row] && board[row][column];
+  const moves = [];
+
+  if (!king || king.type !== 'king') {
+    return moves;
+  }
+
+  const backRow = king.color === 'white' ? 7 : 0;
+
+  if (
+    king.hasMoved ||
+    row !== backRow ||
+    column !== 4 ||
+    isInCheck(board, king.color)
+  ) {
+    return moves;
+  }
+
+  const enemyColor = king.color === 'white' ? 'black' : 'white';
+
+  for (const candidate of CASTLING_CANDIDATES) {
+    const rook = board[backRow][candidate.rookColumn];
+
+    if (
+      !rook ||
+      rook.type !== 'rook' ||
+      rook.color !== king.color ||
+      rook.hasMoved
+    ) {
+      continue;
+    }
+
+    if (
+      candidate.emptyColumns.some(
+        (targetColumn) => board[backRow][targetColumn],
+      )
+    ) {
+      continue;
+    }
+
+    if (
+      candidate.passThroughColumns.some((targetColumn) =>
+        isAttacked(board, backRow, targetColumn, enemyColor),
+      )
+    ) {
+      continue;
+    }
+
+    moves.push({
+      row: backRow,
+      column: candidate.kingTo,
+      castle: candidate.side,
+    });
+  }
+
+  return moves;
 }
 
 export function hasAnyLegalMoves(board, color, enPassant) {

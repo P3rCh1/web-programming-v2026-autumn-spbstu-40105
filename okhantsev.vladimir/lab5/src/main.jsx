@@ -46,7 +46,11 @@ function Board() {
     const clickedPiece = board[row][column];
 
     if (selectedPieceSquare && isAvailableMove(row, column)) {
-      makeMove(selectedPieceSquare, clickedSquare);
+      const move = availableMoves.find(
+        (candidate) => candidate.row === row && candidate.column === column,
+      );
+
+      makeMove(selectedPieceSquare, move);
       return;
     }
 
